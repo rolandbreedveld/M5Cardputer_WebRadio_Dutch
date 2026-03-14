@@ -1,7 +1,7 @@
 
 /**
  * @file M5Cardputer_WebRadio.ino
- * @author Aurélio Avanzi Dutch version Roland Breedveld
+ * @author Aurélio Avanzi Danish version Roland Breedveld
  * @brief https://github.com/cyberwisk/M5Cardputer_WebRadio
  * @version Beta 1.2
  * @date 2024-05-25
@@ -19,6 +19,7 @@
 #include <M5Cardputer.h>
 #include <M5Unified.h>
 #include <Preferences.h>
+#include <HTTPClient.h>
 #include "CardWifiSetup.h"
 
 #include <AudioOutput.h>
@@ -37,16 +38,47 @@ int previousVolume = 0;
 static constexpr uint8_t m5spk_virtual_channel = 0;
 
 /// set web radio station url
-static constexpr const char* station_list[][2] =
+static constexpr const char* station_list[][38] =
 {
-  {"Radio 1"        , "https://icecast.omroep.nl/radio1-bb-mp3"},
-  {"Radio 2"        , "https://icecast.omroep.nl/radio2-bb-mp3"},
-  {"Radio 3"        , "https://icecast.omroep.nl/3fm-bb-mp3"},
-  {"Radio 4"        , "https://icecast.omroep.nl/radio4-bb-mp3"},
-  {"Radio 5"        , "https://icecast.omroep.nl/radio5-bb-mp3"},
-  {"RADIO538"       , "http://playerservices.streamtheworld.com/api/livestream-redirect/RADIO538.mp3"},
-  {"Radio 10"       , "http://playerservices.streamtheworld.com/api/livestream-redirect/RADIO10.mp3"},
-  {"Radio Veronica" , "http://playerservices.streamtheworld.com/api/livestream-redirect/VERONICA.mp3"},
+  {"DR MAMA"                ,"http://live-icy.gss.dr.dk/A/A18H.mp3.m3u"},
+  {"DR Ramasjang Radio"     ,"http://live-icy.gss.dr.dk/A/A24H.mp3.m3u"},
+  {"P1"                     ,"http://live-icy.gss.dr.dk/A/A03H.mp3.m3u"},
+  {"P2"                     ,"http://live-icy.gss.dr.dk/A/A04H.mp3.m3u"},
+  {"P3"                     ,"http://live-icy.gss.dr.dk/A/A05H.mp3.m3u"},
+  {"P4 Bornholm"            ,"http://live-icy.gss.dr.dk/A/A06H.mp3.m3u"},
+  {"P4 Fyn"                 ,"http://live-icy.gss.dr.dk/A/A07H.mp3.m3u"},
+  {"P4 København"           ,"http://live-icy.gss.dr.dk/A/A08H.mp3.m3u"},
+  {"P4 Midt & Vest"         ,"http://live-icy.gss.dr.dk/A/A09H.mp3.m3u"},
+  {"P4 Nordjylland"         ,"http://live-icy.gss.dr.dk/A/A10H.mp3.m3u"},
+  {"P4 Sjælland"            ,"http://live-icy.gss.dr.dk/A/A11H.mp3.m3u"},
+  {"P4 Syd"                 ,"http://live-icy.gss.dr.dk/A/A12H.mp3.m3u"},
+  {"P4 Trekanten"           ,"http://live-icy.gss.dr.dk/A/A13H.mp3.m3u"},
+  {"P4 Østjyllands Radio"   ,"http://live-icy.gss.dr.dk/A/A14H.mp3.m3u"},
+  {"P5"                     ,"http://live-icy.gss.dr.dk/A/A25H.mp3.m3u"},
+  {"P6"                     ,"http://live-icy.gss.dr.dk/A/A29H.mp3.m3u"},
+  {"P7 Mix"                 ,"http://live-icy.gss.dr.dk/A/A21H.mp3.m3u"},
+  {"P8 Jazz"                ,"http://live-icy.gss.dr.dk/A/A22H.mp3.m3u"},
+  {"Cool FM"                ,"http://stream3.specific.dk/SR"},
+  {"DBNR"                   ,"http://www.dbnr.dk/dl/DBNR-Winamp.m3u"},
+  {"MainFM"                 ,"http://mainfm.dk/streams/MainFM.pls"},
+  {"NOVAfm"                 ,"http://stream.novafm.dk/nova128.m3u"},
+  {"Pop FM"                 ,"http://stream.popfm.dk/pop128.m3u"},
+  {"Radio 100"              ,"http://onair.100fmlive.dk/100fm_live.mp3.m3u"},
+  {"Radio Allstars"         ,"http://stream.wlmm.dk/allstars"},
+  {"RadioDUNO"              ,"http://62.198.40.8:88/broadwave.mp3"},
+  {"RadioSkylir.com"        ,"http://lyt.radioskylir.com:9100"},
+  {"Radio Soft"             ,"http://onair.100fmlive.dk/soft_live.mp3.m3u"},
+  {"Retro Radio"            ,"mms://streamer3.xmc.se/11212907"},
+  {"Solo FM"                ,"http://solo.radiostreaming.dk:8050/solo.m3u"},
+  {"The Voice"              ,"http://stream.voice.dk/voice128"},
+  {"NRJ Energy"             ,"mms://85.233.229.254:8000/NRJ"},
+  {"Radio 10FM"             ,"http://www.radio10fm.dk/playlist.m3u"},
+  {"Radio Køge"             ,"http://koege.radiostreaming.dk:8050/koege.m3u"},
+  {"DV.FM Club"             ,"http://srv01.core.sleekstream.com:8000/dvclubflash"},
+  {"DV.FM Funky"            ,"http://srv01.core.sleekstream.com:8000/dvfunkyflash"},
+  {"Partyzone.nu"           ,"http://stream2.partyzone.nu:8080/"},
+  {"Specific Radio"         ,"http://specific.dk/normal.pls"},
+  {"Den2Radio / RadioJazz"  ,"http://93.90.115.45:8000/;stream.mp3"},
 };
 constexpr const size_t stations = sizeof(station_list) / sizeof(station_list[0]);
 
@@ -200,10 +232,34 @@ public:
   }
 };
 
-static constexpr const int preallocateBufferSize = 128 * 1024;
+static constexpr const int preallocateBufferSize = 16 * 1024;
 static constexpr const int preallocateCodecSize = 85332; // MP3 and AAC+SBR codec max mem needed
 static void* preallocateBuffer = nullptr;
 static void* preallocateCodec = nullptr;
+
+String getDirectUrl(String url) {
+  if (url.endsWith(".m3u") || url.endsWith(".pls")) {
+     HTTPClient http;
+     http.begin(url);
+     int httpCode = http.GET();
+     if (httpCode == HTTP_CODE_OK) {
+        String payload = http.getString();
+        // Simple parser: look for http(s)://
+        int httpIndex = payload.indexOf("http");
+        if (httpIndex != -1) {
+           int endIndex = payload.indexOf('\n', httpIndex);
+           if (endIndex == -1) endIndex = payload.indexOf('\r', httpIndex);
+           if (endIndex == -1) endIndex = payload.length();
+           String newUrl = payload.substring(httpIndex, endIndex);
+           newUrl.trim();
+           return newUrl;
+        }
+     }
+     http.end();
+  }
+  return url;
+}
+
 static constexpr size_t WAVE_SIZE = 320;
 static AudioOutputM5Speaker out(&M5Cardputer.Speaker, m5spk_virtual_channel);
 static AudioGenerator *decoder = nullptr;
@@ -274,7 +330,8 @@ static void decodeTask(void*)
       meta_text[0] = station_list[index][0];
       stream_title[0] = 0;
       meta_mod_bits = 3;
-      file = new AudioFileSourceICYStream(station_list[index][1]);
+      String directUrl = getDirectUrl(station_list[index][1]);
+      file = new AudioFileSourceICYStream(directUrl.c_str());
       file->RegisterMetadataCB(MDCallback, (void*)"ICY");
       buff = new AudioFileSourceBuffer(file, preallocateBuffer, preallocateBufferSize);
       //decoder = isAAC ? (AudioGenerator*) new AudioGeneratorAAC(preallocateCodec, preallocateCodecSize) : (AudioGenerator*) new AudioGeneratorMP3(preallocateCodec, preallocateCodecSize);
@@ -585,6 +642,14 @@ void setup(void)
 
   preallocateBuffer = malloc(preallocateBufferSize);
   preallocateCodec = malloc(preallocateCodecSize);
+
+  if (!preallocateBuffer || !preallocateCodec) {
+    M5Cardputer.Display.fillScreen(TFT_RED);
+    M5Cardputer.Display.setCursor(0, 0);
+    M5Cardputer.Display.setTextSize(2);
+    M5Cardputer.Display.println("Memory Alloc Failed!");
+    while(1) delay(100);
+  }
 
   { /// custom setting
     auto spk_cfg = M5Cardputer.Speaker.config();

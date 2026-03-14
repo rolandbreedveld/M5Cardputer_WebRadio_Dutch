@@ -139,7 +139,15 @@ void connectToWiFi() {
     } else {      
         M5Cardputer.Display.clear();
         M5Cardputer.Display.drawString("Finding WiFi", 1, 1);
-        CFG_WIFI_SSID = scanAndDisplayNetworks();
+
+        while (1) {
+            CFG_WIFI_SSID = scanAndDisplayNetworks();
+            if (CFG_WIFI_SSID.length() > 0) break;
+            M5Cardputer.Display.clear();
+            M5Cardputer.Display.drawString("No Networks. Rescanning...", 1, 20);
+            delay(1000);
+        }
+
         M5Cardputer.Display.clear();
         M5Cardputer.Display.drawString("SSID: " + CFG_WIFI_SSID, 1, 20);
         M5Cardputer.Display.drawString("Password:", 1, 38);
